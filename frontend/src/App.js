@@ -242,9 +242,7 @@ const App = () => {
         }
         await updateItem("tokens", "accessToken", res.data.accessToken);
         setIsLoggedIn(true);
-        await getAccessibilities();
-        await getSetDashboardData();
-        await getSetMessengerList();
+        await Promise.all([getAccessibilities(), getSetDashboardData(), getSetMessengerList()]);
         setIsLoading(false);
       } else {
         setNotifMessage("Something went wrong checking your session");

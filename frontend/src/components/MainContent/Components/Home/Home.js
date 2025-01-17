@@ -41,17 +41,22 @@ const Home = () => {
     const interval = setInterval(() => {
       generateRandomQuote();
     },10000);
-    fetchData("getHomeData");
-    return () => clearInterval(interval);
+    const time = setTimeout( async () => {
+      await fetchData("getHomeData");
+    }, 1000);
+    return () => {
+      clearInterval(interval);
+      clearTimeout(time);
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
     socket.on("announcementSocket", (dat) => {
-      setAnnouncements(prev => ([
-        ...prev,
-        ...dat
-      ]));
+      setAnnouncements((prev = []) => ([
+        ...(Array.isArray(prev) ? prev : []),
+        ...(Array.isArray(dat) ? dat : [])
+      ]));      
       setData(prev => ({
         ...prev,
         announcements: Array.isArray(prev?.announcements)
@@ -127,7 +132,7 @@ const Home = () => {
           isToday(day) ? `text-${selectedTheme}-100 bg-gray-600 shadow-inner` : ""
         }`}
       >
-        {day && <p className="text-xxs font-normal p-[0.15rem]">{day}</p>}
+        {day && <p className="text-xxs md:text-xs lg:text-sm font-normal p-[0.15rem]">{day}</p>}
         <div className="col-span-2 flex flex-col gap-[0.1rem] w-full py-2 md:p-2 lg:p-2">
           {data?.announcements &&
             data.announcements
@@ -140,7 +145,7 @@ const Home = () => {
                 );
               })
               .slice(0, 6)
-              .map((val, i) => (
+              .map((_, i) => (
                 <div key={i} className="p-[0.2rem] bg-blue-600 rounded-full w-full" />
               ))}
         </div>
@@ -167,7 +172,7 @@ const Home = () => {
       <div className="flex flex-col p-2 mb-4 mx-2 md:mx-3 lg:mx-4 mt-4">
         <Header title={ title } icon={<MdHome />}/>
         <div className="min-h-[70vh] md:min-h-[80vh] lg:min-h-[90vh] h-[70vh] md:h-[80vh] lg:h-[90vh] overflow-y-auto scroll-smooth p-2 mt-2">
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4 p-2">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4">
             <div className="flex flex-col gap-2 h-auto w-full">
 
               {/* Calendar */}
@@ -288,7 +293,7 @@ const Home = () => {
                   <p className="text-base self-end justify-self-end">{String(new Date(announcementDay).toLocaleDateString('en-US', {day: "numeric", weekday: "long"})).split(' ')[1]}</p>
                 </div>
               </div>
-              {isLoggedIn && Boolean(userAccessibilities.access_announcements.add_announcements) && (
+              {isLoggedIn && (
               <form onSubmit={handleSubmit} className={`flex flex-wrap justify-start items-center gap-2 px-2 w-full border-b-[1px] border-${selectedTheme}-800 pb-1`}>
                 <input 
                   type="text" 
@@ -338,17 +343,15 @@ const Home = () => {
                     <p className={`mb-1 text-sm capitalize`}>{val.title}</p>
                     <p className={`text-xxs`}>{val.details}</p>
                   </div>
-                  {Boolean(userAccessibilities.access_announcements.delete_announcements) && (
-                    <button 
-                      onClick={async () => {
-                        await deleteData("deleteAnnouncement", val.announcement_id);
-                        socket.emit("deleteAnnouncement", val.announcement_id);
-                      }}
-                      className={`self-center ml-auto text-${selectedTheme}-800 hover:text-${selectedTheme}-700 active:${selectedTheme}-200`}
-                    >
-                      <FaTrash />
-                    </button>
-                  )}
+                  <button 
+                    onClick={async () => {
+                      await deleteData("deleteAnnouncement", val.announcement_id);
+                      socket.emit("deleteAnnouncement", val.announcement_id);
+                    }}
+                    className={`self-center ml-auto text-${selectedTheme}-800 hover:text-${selectedTheme}-700 active:${selectedTheme}-200`}
+                  >
+                    <FaTrash />
+                  </button>
                 </div>
               )) : (
                 <div className="flex flex-col min-w-full min-h-full items-center justify-center">

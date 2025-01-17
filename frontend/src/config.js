@@ -1,5 +1,5 @@
 const config = {
-  REACT_APP_PROJECT_STATE: "production",
+  REACT_APP_PROJECT_STATE: "development",
   REACT_APP_DEVELOPMENT_BACKEND_BASE_URL: "https://localhost:5000",
   REACT_APP_PRODUCTION_BACKEND_BASE_URL: "https://api.kalusugapp.com",
   REACT_APP_PRODUCTION_BACKEND_WEBSOCKET: "wss://api.kalusugapp.com",

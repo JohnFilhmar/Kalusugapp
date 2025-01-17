@@ -4,6 +4,7 @@ const bcrypt = require("bcryptjs");
 require("dotenv").config();
 
 class AuthController {
+  
   async verifyEmail(req, res) {
     let connection;
     try {

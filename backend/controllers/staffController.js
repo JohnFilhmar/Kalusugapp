@@ -6,6 +6,7 @@ require("dotenv").config();
 const { v4: uuidv4 } = require("uuid");
 
 class StaffController {
+  
   async getStaffId(req, res) {
     let connection;
     try {

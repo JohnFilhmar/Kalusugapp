@@ -73,7 +73,7 @@ const TopNav = () => {
 
   useEffect(() => {
     socket.on("broadcastNotification", (data) => {
-      console.log(data);
+      
     });
     socket.on("broadcastNotificationError", (err) => {
       console.error(`Notification socket error: ${err}`);

@@ -12,13 +12,21 @@ const api = axios.create({
   baseURL: URL,
 });
 
-let cancelTokenSource = null;
+const cancelTokens = new Map();
 
-const createCancelToken = () => {
-  if (cancelTokenSource) {
-    cancelTokenSource.cancel("Operation canceled due to new request.");
+const createCancelToken = (key) => {
+  if (cancelTokens.has(key)) {
+    cancelTokens.get(key).cancel(`Request with key "${key}" canceled due to new request.`);
   }
-  cancelTokenSource = axios.CancelToken.source();
+  const cancelTokenSource = axios.CancelToken.source();
+  cancelTokens.set(key, cancelTokenSource);
+  return cancelTokenSource.token;
+};
+
+const clearCancelToken = (key) => {
+  if (cancelTokens.has(key)) {
+    cancelTokens.delete(key);
+  }
 };
 
 const RefreshAccessToken = async (accessToken) => {
@@ -38,7 +46,8 @@ const RefreshAccessToken = async (accessToken) => {
     await updateItem("tokens", "accessToken", newAccessToken);
     return newAccessToken;
   } catch (error) {
-    return console.error("Unable to refresh token", error);
+    console.error("Unable to refresh token", error);
+    throw error;
   }
 };
 
@@ -46,32 +55,21 @@ api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const { getAllItems } = useIndexedDB();
-    if (error.response?.status !== 401) {
-      const originalRequest = error.config;
-      if (!originalRequest || !originalRequest.url) {
-        return Promise.reject(new Error("Original request is missing or invalid"));
-      }      
+    const originalRequest = error.config;
+    if (!originalRequest || !originalRequest.url) {
+      return Promise.reject(new Error("Original request is missing or invalid"));
+    }
+    if (error.response?.status === 401 && !originalRequest._retry) {
+      originalRequest._retry = true;
       try {
         const tokens = await getAllItems("tokens");
         if (tokens && tokens.accessToken) {
-          const exp = jwtDecode(tokens?.accessToken).exp;
-          const curr = Math.floor(Date.now() / 1000);
-          if (exp < curr) {
-            const { data } = await axios.post(
-              `${URL}/authToken`,
-              { username: jwtDecode(tokens?.accessToken).username },
-              {
-                headers: { Authorization: `Bearer ${tokens?.accessToken}` },
-                withCredentials: true,
-              }
-            );
-            originalRequest.headers[
-              "Authorization"
-            ] = `Bearer ${data.accessToken}`;
-          }
+          const newToken = await RefreshAccessToken(tokens.accessToken);
+          originalRequest.headers["Authorization"] = `Bearer ${newToken}`;
+          return axios(originalRequest);
         }
-        return axios(originalRequest);
       } catch (err) {
+        console.error("Token refresh failed:", err);
         return Promise.reject(err);
       }
     }
@@ -81,8 +79,7 @@ api.interceptors.response.use(
 
 api.interceptors.request.use(async (conf) => {
   const { getAllItems } = useIndexedDB();
-  createCancelToken();
-  conf.cancelToken = cancelTokenSource.token;
+  conf.cancelToken = createCancelToken(conf.url);
   const { accessToken } = await getAllItems("tokens");
   if (accessToken) {
     const decodedToken = jwtDecode(accessToken);
@@ -93,7 +90,21 @@ api.interceptors.request.use(async (conf) => {
       conf.headers["Authorization"] = `Bearer ${accessToken}`;
     }
   }
+
   return conf;
 });
+
+api.interceptors.response.use(
+  (response) => {
+    clearCancelToken(response.config.url);
+    return response;
+  },
+  (error) => {
+    if (error.config?.url) {
+      clearCancelToken(error.config.url);
+    }
+    return Promise.reject(error);
+  }
+);
 
 export default api;
